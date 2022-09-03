@@ -1,12 +1,13 @@
 {
-  description = "A collection of utilities for ripping, dumping, analysing, and modifying disk images.";
-
   inputs = rec {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-22.05";
     flake-utils.url = "github:numtide/flake-utils";
+
+    ipflib-src.url = "http://www.softpres.org/_media/files:ipflib42_linux-x86_64.tar.gz?id=download&cache=cache";
+    ipflib-src.flake = false;
   };
 
-  outputs = { self, nixpkgs, flake-utils }:
+  outputs = { self, nixpkgs, flake-utils, ipflib-src }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
@@ -16,16 +17,19 @@
 
           ipflib = pkgs.stdenv.mkDerivation rec {
             pname = "ipflib";
-            version = "0.0.0";
+            version = "4.2";
 
-            src = fetchTarball {
-              url = "http://www.softpres.org/_media/files:ipfdevlib_linux.tgz?id=download&cache=cache";
-              sha256 = "sha256:13w3q3rcycfksnsad9yislqhy1b0fakv7rimjlss0r84cgi0jjds";
-            };
+            src = ipflib-src;
 
             installPhase = ''
-              mkdir -p $out
-              cp -vr include lib $out
+              mkdir -p $out $out/lib
+              cp -vr include $out
+              cp -v libcapsimage.so.4.2 $out/lib
+              ln -s libcapsimage.so.4.2 $out/lib/libcapsimage.so.4
+            '';
+
+            postFixup = ''
+              patchelf --set-rpath ${pkgs.stdenv.cc.cc.lib}/lib $out/lib/libcapsimage.so.4.2
             '';
           };
         };
